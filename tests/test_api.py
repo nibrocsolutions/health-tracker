@@ -160,10 +160,10 @@ def test_week_progress_starts_on_sunday(client):
     )
     client.post(f"/api/days/{person['id']}/2026-11-11/workouts", json={"kind": "cardio", "minutes": 30})
     client.post(f"/api/days/{person['id']}/2026-11-12/workouts", json={"kind": "weights", "minutes": 25})
-    client.put(f"/api/days/{person['id']}/2026-11-08", json={"feeling": "great", "weight_lb": 180, "water_glasses": 2})
-    client.put(f"/api/days/{person['id']}/2026-11-11", json={"water_glasses": 6})
+    client.put(f"/api/days/{person['id']}/2026-11-08", json={"feeling": "great", "weight_lb": 180, "water_glasses": 2, "sleep_hours": 7.5})
+    client.put(f"/api/days/{person['id']}/2026-11-11", json={"water_glasses": 6, "sleep_hours": 8})
     client.put(f"/api/days/{person['id']}/2026-11-14", json={"systolic": 118, "diastolic": 76, "pulse": 62})
-    client.put(f"/api/days/{person['id']}/2026-11-07", json={"feeling": "low", "water_glasses": 5})
+    client.put(f"/api/days/{person['id']}/2026-11-07", json={"feeling": "low", "water_glasses": 5, "sleep_hours": 6})
     progress = client.get("/api/progress", params={"person_id": person["id"], "today": "2026-11-11"})
     assert progress.status_code == 200, progress.text
     week = progress.json()["week"]
@@ -176,6 +176,7 @@ def test_week_progress_starts_on_sunday(client):
     assert week["weights_minutes"] == 25
     assert week["days_logged"] == 4
     assert week["water_glasses"] == 8
+    assert week["sleep_hours"] == 15.5
     assert week["feelings"][0] == {"date": "2026-11-08", "feeling": "great"}
     assert week["feelings"][3]["date"] == "2026-11-11"
     assert week["feelings"][-1]["date"] == "2026-11-14"
@@ -185,6 +186,7 @@ def test_week_progress_starts_on_sunday(client):
     assert saturday.json()["week"]["start"] == "2026-11-01"
     assert saturday.json()["week"]["days_logged"] == 1
     assert saturday.json()["week"]["water_glasses"] == 5
+    assert saturday.json()["week"]["sleep_hours"] == 6
 
 
 def test_removing_a_person_removes_their_days(client):
@@ -239,3 +241,49 @@ def test_existing_database_gains_water_column(client):
     assert loaded.status_code == 200, loaded.text
     assert loaded.json()["notes"] == "Keep"
     assert loaded.json()["water_glasses"] is None
+
+
+def test_sleep_hours_count_and_clear(client):
+    person = _person(client)
+    path = f"/api/days/{person['id']}/2026-11-11"
+    saved = client.put(path, json={"notes": "Rested", "sleep_hours": 7.5, "water_glasses": 4})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["sleep_hours"] == 7.5
+    assert saved.json()["water_glasses"] == 4
+    whole = client.put(path, json={"notes": "Rested", "sleep_hours": 8, "water_glasses": 4})
+    assert whole.json()["sleep_hours"] == 8
+    marks = client.get("/api/days", params={"person_id": person["id"], "start": "2026-11-11", "end": "2026-11-11"})
+    assert marks.json()["days"][0]["sleep_hours"] == 8
+    kept = client.put(path, json={"notes": "Rested", "sleep_hours": 0, "water_glasses": 4})
+    assert kept.json()["sleep_hours"] is None
+    assert kept.json()["water_glasses"] == 4
+    half = client.put(path, json={"sleep_hours": 0.5})
+    assert half.json()["sleep_hours"] == 0.5
+    too_long = client.put(path, json={"sleep_hours": 24.5})
+    assert too_long.status_code == 422
+    assert "0 and 24" in too_long.json()["detail"]
+    uneven = client.put(path, json={"sleep_hours": 7.25})
+    assert uneven.status_code == 422
+    assert "half-hour" in uneven.json()["detail"]
+    script = client.get("/static/js/app.js")
+    assert 'data-act="sleep"' in script.text
+    assert "hours of sleep" in script.text
+
+
+def test_existing_database_gains_sleep_column(client):
+    from app.database import engine, ensure_columns
+
+    person = _person(client)
+    path = f"/api/days/{person['id']}/2026-11-11"
+    client.put(path, json={"notes": "Keep", "sleep_hours": 7.5})
+    with engine.begin() as conn:
+        conn.exec_driver_sql("ALTER TABLE days RENAME COLUMN sleep_hours TO sleep_old")
+    ensure_columns()
+    ensure_columns()
+    with engine.begin() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(days)")}
+    assert "sleep_hours" in columns
+    loaded = client.get(path)
+    assert loaded.status_code == 200, loaded.text
+    assert loaded.json()["notes"] == "Keep"
+    assert loaded.json()["sleep_hours"] is None
