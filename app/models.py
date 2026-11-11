@@ -33,6 +33,7 @@ class DayLog(Base):
     systolic: Mapped[int | None] = mapped_column(Integer, nullable=True)
     diastolic: Mapped[int | None] = mapped_column(Integer, nullable=True)
     pulse: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    water_glasses: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

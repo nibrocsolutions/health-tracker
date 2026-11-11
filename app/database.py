@@ -28,6 +28,26 @@ class Base(DeclarativeBase):
     pass
 
 
+def ensure_columns() -> None:
+    """Add columns introduced after the first release.
+
+    create_all builds a new database. A Pi that already has a database
+    needs the new column added in place.
+    """
+    if not settings.resolved_database_url.startswith("sqlite"):
+        return
+    with engine.begin() as conn:
+        tables = {
+            row[0]
+            for row in conn.exec_driver_sql("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        if "days" not in tables:
+            return
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(days)")}
+        if "water_glasses" not in columns:
+            conn.exec_driver_sql("ALTER TABLE days ADD COLUMN water_glasses INTEGER")
+
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:

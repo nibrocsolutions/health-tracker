@@ -23,6 +23,7 @@ class DayWrite(BaseModel):
     systolic: int | None = None
     diastolic: int | None = None
     pulse: int | None = None
+    water_glasses: int | None = None
 
     @field_validator("feeling")
     @classmethod
@@ -49,6 +50,17 @@ class DayWrite(BaseModel):
         if not 40 <= rounded <= 800:
             raise ValueError("Weight should be between 40 and 800 pounds.")
         return rounded
+
+    @field_validator("water_glasses")
+    @classmethod
+    def check_water(cls, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise ValueError("Glasses should be a whole number.")
+        if not 0 <= value <= 40:
+            raise ValueError("Glasses should be between 0 and 40.")
+        return None if value == 0 else value
 
     @field_validator("systolic", "diastolic", "pulse")
     @classmethod

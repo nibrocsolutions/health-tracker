@@ -1,7 +1,7 @@
 def test_backup_round_trip(client):
     person = client.post("/api/people", json={"name": "Alex"}).json()
     day = f"/api/days/{person['id']}/2026-11-11"
-    client.put(day, json={"feeling": "good", "notes": "Steady", "weight_lb": 180.5, "systolic": 118, "diastolic": 74})
+    client.put(day, json={"feeling": "good", "notes": "Steady", "weight_lb": 180.5, "systolic": 118, "diastolic": 74, "water_glasses": 8})
     client.put(day + "/meals", json={"meals": [
         {"slot": 1, "protein": "Eggs", "side": "Fruit"},
         {"slot": 2, "protein": "", "side": ""},
@@ -29,12 +29,29 @@ def test_backup_round_trip(client):
     loaded = client.get(f"/api/days/{people[0]['id']}/2026-11-11").json()
     assert loaded["notes"] == "Steady"
     assert loaded["weight_lb"] == 180.5
+    assert loaded["water_glasses"] == 8
+    assert exported.json()["days"][0]["water_glasses"] == 8
     assert loaded["meals"][0]["protein"] == "Eggs"
     assert loaded["meals"][5]["side"] == "Greens"
     assert loaded["workouts"][0]["notes"] == "Walk"
 
     added = client.post("/api/people", json={"name": "Casey"})
     assert added.status_code == 201
+
+    older = {
+        "format": "health-backup",
+        "version": 1,
+        "people": [{"id": 1, "name": "Alex"}],
+        "days": [{"id": 1, "person_id": 1, "date": "2026-11-12", "feeling": "okay", "notes": "Before water"}],
+        "meals": [],
+        "workouts": [],
+    }
+    restored_old = client.post("/api/admin/import", json=older)
+    assert restored_old.status_code == 200, restored_old.text
+    person = client.get("/api/people").json()[0]
+    loaded_old = client.get(f"/api/days/{person['id']}/2026-11-12").json()
+    assert loaded_old["notes"] == "Before water"
+    assert loaded_old["water_glasses"] is None
 
 
 def test_bad_backup_is_refused(client):

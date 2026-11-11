@@ -86,6 +86,7 @@ def export_backup(db: Session) -> dict:
                 "systolic": day.systolic,
                 "diastolic": day.diastolic,
                 "pulse": day.pulse,
+                "water_glasses": day.water_glasses,
                 "created_at": isoformat_utc(day.created_at),
                 "updated_at": isoformat_utc(day.updated_at),
             }
@@ -152,6 +153,7 @@ def _validate(payload: object) -> dict:
                 systolic=row.get("systolic"),
                 diastolic=row.get("diastolic"),
                 pulse=row.get("pulse"),
+                water_glasses=row.get("water_glasses"),
             )
         except ValidationError as exc:
             raise BackupError(f"Day {index}: {_message(exc)}") from exc
@@ -166,6 +168,7 @@ def _validate(payload: object) -> dict:
                 "systolic": body.systolic,
                 "diastolic": body.diastolic,
                 "pulse": body.pulse,
+                "water_glasses": body.water_glasses,
                 "created_at": _parse_dt(row.get("created_at"), f"Day {index}"),
                 "updated_at": _parse_dt(row.get("updated_at"), f"Day {index}"),
             }

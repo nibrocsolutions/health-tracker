@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.admin import router as admin_router
 from app.api.routes import router
 from app.config import settings
-from app.database import Base, engine
+from app.database import Base, engine, ensure_columns
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -46,6 +46,7 @@ def _plain_error(exc: RequestValidationError) -> str:
 async def lifespan(_: FastAPI):
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    ensure_columns()
     yield
 
 
