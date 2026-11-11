@@ -16,7 +16,7 @@ const MONTHS = [
 const state = {
   people: [],
   personId: null,
-  tab: "today",
+  tab: "calendar",
   date: "",
   day: null,
   marks: {},
