@@ -1,0 +1,16 @@
+services:
+  health-tracker:
+    build: .
+    image: health-tracker:latest
+    container_name: health-tracker
+    ports:
+      - "8083:8083"
+    volumes:
+      - health-data:/data
+    environment:
+      DATA_DIR: /data
+      PORT: "8083"
+    restart: unless-stopped
+
+volumes:
+  health-data:
