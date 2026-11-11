@@ -348,6 +348,34 @@ button.cal-day.is-selected { outline: 2px solid var(--ink); outline-offset: -2px
 .dot.move { background: var(--orange); }
 .dot.weight { background: var(--navy); }
 .dot.pressure { background: var(--pressure); }
+.dot.water { background: #2aa7c9; }
+
+.stepper {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+}
+.stepper button {
+  min-height: 64px;
+  border: 0;
+  border-radius: 0;
+  background: white;
+  font-size: 32px;
+  font-weight: 700;
+}
+.stepper button + .stepper-value,
+.stepper .stepper-value + button { border-left: 1px solid var(--line); }
+.stepper-value {
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.stepper button:disabled { opacity: 0.45; }
 
 .feel-great { color: var(--teal); }
 .feel-good { color: var(--good); }

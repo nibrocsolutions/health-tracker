@@ -42,6 +42,8 @@ def day_is_blank(day: DayLog) -> bool:
         return False
     if day.weight_lb is not None or day.systolic is not None or day.diastolic is not None or day.pulse is not None:
         return False
+    if day.water_glasses:
+        return False
     if any(meal.protein or meal.side for meal in day.meals):
         return False
     if day.workouts:
@@ -90,6 +92,7 @@ def save_scalars(db: Session, person_id: int, logged_on: date, payload: DayWrite
         and payload.systolic is None
         and payload.diastolic is None
         and payload.pulse is None
+        and not payload.water_glasses
     )
     if day is None and blank:
         return empty_day(person.id, logged_on)
@@ -101,6 +104,7 @@ def save_scalars(db: Session, person_id: int, logged_on: date, payload: DayWrite
     day.systolic = payload.systolic
     day.diastolic = payload.diastolic
     day.pulse = payload.pulse
+    day.water_glasses = payload.water_glasses
     _touch(day)
     return _finish(db, person.id, logged_on, day)
 
@@ -182,6 +186,7 @@ def progress_for(db: Session, person_id: int, today: date) -> dict:
     cardio_minutes = 0
     weights_minutes = 0
     workouts = 0
+    water_glasses = 0
     feelings = []
     for offset in range(7):
         logged_on = start + timedelta(days=offset)
@@ -193,6 +198,7 @@ def progress_for(db: Session, person_id: int, today: date) -> dict:
         workouts += len(day.workouts)
         cardio_minutes += sum(item.minutes for item in day.workouts if item.kind == "cardio")
         weights_minutes += sum(item.minutes for item in day.workouts if item.kind == "weights")
+        water_glasses += day.water_glasses or 0
     weights = [
         {"date": day.logged_on.isoformat(), "weight_lb": day.weight_lb}
         for day in db.scalars(
@@ -225,6 +231,7 @@ def progress_for(db: Session, person_id: int, today: date) -> dict:
             "workouts": workouts,
             "cardio_minutes": cardio_minutes,
             "weights_minutes": weights_minutes,
+            "water_glasses": water_glasses,
             "days_logged": len(week_rows),
             "feelings": feelings,
         },

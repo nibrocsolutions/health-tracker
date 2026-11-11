@@ -146,7 +146,7 @@ def test_calendar_marks_and_clearing_a_day(client):
     removed = client.delete(f"/api/workouts/{workout_id}")
     assert removed.status_code == 200, removed.text
     assert removed.json()["workouts"] == []
-    blank = client.put(path, json={"feeling": "", "notes": "", "weight_lb": None, "systolic": None, "diastolic": None, "pulse": None})
+    blank = client.put(path, json={"feeling": "", "notes": "", "weight_lb": None, "systolic": None, "diastolic": None, "pulse": None, "water_glasses": 0})
     assert blank.json()["id"] is None
     quiet = client.get("/api/days", params={"person_id": person["id"], "start": "2026-11-01", "end": "2026-11-30"})
     assert quiet.json()["days"] == []
@@ -160,9 +160,10 @@ def test_week_progress_starts_on_sunday(client):
     )
     client.post(f"/api/days/{person['id']}/2026-11-11/workouts", json={"kind": "cardio", "minutes": 30})
     client.post(f"/api/days/{person['id']}/2026-11-12/workouts", json={"kind": "weights", "minutes": 25})
-    client.put(f"/api/days/{person['id']}/2026-11-08", json={"feeling": "great", "weight_lb": 180})
+    client.put(f"/api/days/{person['id']}/2026-11-08", json={"feeling": "great", "weight_lb": 180, "water_glasses": 2})
+    client.put(f"/api/days/{person['id']}/2026-11-11", json={"water_glasses": 6})
     client.put(f"/api/days/{person['id']}/2026-11-14", json={"systolic": 118, "diastolic": 76, "pulse": 62})
-    client.put(f"/api/days/{person['id']}/2026-11-07", json={"feeling": "low"})
+    client.put(f"/api/days/{person['id']}/2026-11-07", json={"feeling": "low", "water_glasses": 5})
     progress = client.get("/api/progress", params={"person_id": person["id"], "today": "2026-11-11"})
     assert progress.status_code == 200, progress.text
     week = progress.json()["week"]
@@ -174,6 +175,7 @@ def test_week_progress_starts_on_sunday(client):
     assert week["cardio_minutes"] == 30
     assert week["weights_minutes"] == 25
     assert week["days_logged"] == 4
+    assert week["water_glasses"] == 8
     assert week["feelings"][0] == {"date": "2026-11-08", "feeling": "great"}
     assert week["feelings"][3]["date"] == "2026-11-11"
     assert week["feelings"][-1]["date"] == "2026-11-14"
@@ -182,6 +184,7 @@ def test_week_progress_starts_on_sunday(client):
     saturday = client.get("/api/progress", params={"person_id": person["id"], "today": "2026-11-07"})
     assert saturday.json()["week"]["start"] == "2026-11-01"
     assert saturday.json()["week"]["days_logged"] == 1
+    assert saturday.json()["week"]["water_glasses"] == 5
 
 
 def test_removing_a_person_removes_their_days(client):
@@ -195,3 +198,44 @@ def test_removing_a_person_removes_their_days(client):
     summary = client.get("/api/admin/summary")
     assert summary.json()["days"] == 0
     assert summary.json()["people"] == []
+
+
+def test_water_glasses_count_and_clear(client):
+    person = _person(client)
+    path = f"/api/days/{person['id']}/2026-11-11"
+    saved = client.put(path, json={"notes": "Morning", "water_glasses": 6})
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["water_glasses"] == 6
+    assert saved.json()["notes"] == "Morning"
+    marks = client.get("/api/days", params={"person_id": person["id"], "start": "2026-11-11", "end": "2026-11-11"})
+    assert marks.json()["days"][0]["water_glasses"] == 6
+    kept = client.put(path, json={"notes": "Morning", "water_glasses": 0})
+    assert kept.json()["water_glasses"] is None
+    assert kept.json()["notes"] == "Morning"
+    gone = client.put(path, json={"notes": "", "water_glasses": None})
+    assert gone.json()["id"] is None
+    too_many = client.put(path, json={"water_glasses": 41})
+    assert too_many.status_code == 422
+    assert "0 and 40" in too_many.json()["detail"]
+    script = client.get("/static/js/app.js")
+    assert 'data-act="water"' in script.text
+    assert "glasses of water" in script.text
+
+
+def test_existing_database_gains_water_column(client):
+    from app.database import engine, ensure_columns
+
+    person = _person(client)
+    path = f"/api/days/{person['id']}/2026-11-11"
+    client.put(path, json={"notes": "Keep", "water_glasses": 4})
+    with engine.begin() as conn:
+        conn.exec_driver_sql("ALTER TABLE days RENAME COLUMN water_glasses TO water_old")
+    ensure_columns()
+    ensure_columns()
+    with engine.begin() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(days)")}
+    assert "water_glasses" in columns
+    loaded = client.get(path)
+    assert loaded.status_code == 200, loaded.text
+    assert loaded.json()["notes"] == "Keep"
+    assert loaded.json()["water_glasses"] is None

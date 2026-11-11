@@ -226,6 +226,7 @@ function storedScalars(overrides = {}) {
     systolic: day.systolic ?? null,
     diastolic: day.diastolic ?? null,
     pulse: day.pulse ?? null,
+    water_glasses: day.water_glasses ?? null,
     ...overrides,
   };
 }
@@ -250,6 +251,11 @@ function readWhole(data, name, label) {
   return value;
 }
 
+function glassLabel(count) {
+  const glasses = Number(count) || 0;
+  return glasses === 1 ? "1 glass" : `${glasses} glasses`;
+}
+
 function statusText(day) {
   if (!day || !day.id) return "";
   const parts = [];
@@ -259,6 +265,7 @@ function statusText(day) {
   if (minutes) parts.push(`${minutes} min`);
   if (day.weight_lb != null) parts.push(`${day.weight_lb} lb`);
   if (day.systolic != null) parts.push(`${day.systolic}/${day.diastolic}`);
+  if (day.water_glasses) parts.push(glassLabel(day.water_glasses));
   if (day.feeling) parts.push(feelingLabel(day.feeling));
   if (!parts.length && day.notes) parts.push("Note saved");
   return parts.join(" · ");
@@ -271,6 +278,7 @@ function remember(day, what) {
   const intro = document.getElementById("intro");
   if (intro) intro.hidden = Boolean(day.id);
   if (what === "feeling") paintFeelings(day.feeling || "");
+  if (what === "water") paintWater(day.water_glasses || 0);
   if (what === "notes" || what === "body") {
     const notes = document.querySelector("#app [name=notes]");
     if (notes && document.activeElement !== notes) notes.value = day.notes || "";
@@ -312,6 +320,16 @@ function paintFeelings(feeling) {
     button.classList.toggle("on", on);
     button.setAttribute("aria-pressed", on ? "true" : "false");
   });
+}
+
+function paintWater(count) {
+  const shown = Number(count) || 0;
+  const value = document.querySelector("[data-water-count]");
+  if (value) value.textContent = String(shown);
+  const less = document.querySelector("[data-act=water][data-delta='-1']");
+  const more = document.querySelector("[data-act=water][data-delta='1']");
+  if (less) less.disabled = shown <= 0;
+  if (more) more.disabled = shown >= 40;
 }
 
 async function load() {
@@ -394,7 +412,7 @@ function renderWelcome() {
   )).join("");
   return `<section class="stack">
     <h1>Daily</h1>
-    <p class="lede">A health log for each person. Six small meals, movement, and how the day feels. Weight and blood pressure only when you want them.</p>
+    <p class="lede">A health log for each person. Six small meals, water, movement, and how the day feels. Weight and blood pressure only when you want them.</p>
     ${picks ? `<div class="stack">${picks}</div>` : ""}
     <form class="card stack" data-act="welcome">
       <label class="field">Who is this log for?
@@ -427,6 +445,7 @@ function renderToday() {
       </div>
     </div>`;
   }).join("");
+  const glasses = day.water_glasses || 0;
   const onToday = state.date === todayISO();
   return `${header()}
     ${banners()}
@@ -436,14 +455,24 @@ function renderToday() {
       <button type="button" data-act="shift-day" data-delta="1" aria-label="Next day">›</button>
     </div>
     ${onToday ? "" : `<div class="today-link"><button type="button" data-act="go-today">Jump to today</button></div>`}
-    <p id="intro" class="lede"${day.id ? " hidden" : ""}>Six small meals, a little movement, and how this day feels.</p>
+    <p id="intro" class="lede"${day.id ? " hidden" : ""}>Six small meals, water, a little movement, and how this day feels.</p>
     <p id="status">${esc(statusText(day))}</p>
     <div class="chips" aria-label="Jump to a section">
+      <button type="button" class="chip" data-act="jump" data-target="water">Water</button>
       <button type="button" class="chip" data-act="jump" data-target="feeling">Feeling</button>
       <button type="button" class="chip" data-act="jump" data-target="meals">Meals</button>
       <button type="button" class="chip" data-act="jump" data-target="move">Move</button>
       <button type="button" class="chip" data-act="jump" data-target="body">Body</button>
     </div>
+    <section class="card stack" id="water">
+      <h2>Water</h2>
+      <p class="muted">Glasses today. Tap plus for each one.</p>
+      <div class="stepper" role="group" aria-label="Glasses of water">
+        <button type="button" data-act="water" data-delta="-1" aria-label="One less glass" ${glasses <= 0 ? "disabled" : ""}>−</button>
+        <span class="stepper-value" data-water-count>${glasses}</span>
+        <button type="button" data-act="water" data-delta="1" aria-label="One more glass" ${glasses >= 40 ? "disabled" : ""}>+</button>
+      </div>
+    </section>
     <section class="card stack" id="feeling">
       <h2>How the day feels</h2>
       <div class="feels" role="group" aria-label="Feeling">${feelings}</div>
@@ -524,6 +553,7 @@ function dayDots(mark) {
   const dots = [];
   if (mark.meals) dots.push(`<i class="dot meals"></i>`);
   if (mark.workouts) dots.push(`<i class="dot move"></i>`);
+  if (mark.water_glasses) dots.push(`<i class="dot water"></i>`);
   if (mark.weight_lb != null) dots.push(`<i class="dot weight"></i>`);
   if (mark.systolic != null) dots.push(`<i class="dot pressure"></i>`);
   return `<span class="cal-dots">${dots.join("")}</span>`;
@@ -534,6 +564,7 @@ function dayAria(date, mark) {
   if (!mark) return `${parts[0]}, nothing logged`;
   if (mark.meals) parts.push(mark.meals === 1 ? "1 meal" : `${mark.meals} meals`);
   if (mark.workouts) parts.push(mark.workouts === 1 ? "1 workout" : `${mark.workouts} workouts`);
+  if (mark.water_glasses) parts.push(glassLabel(mark.water_glasses));
   if (mark.weight_lb != null) parts.push("weight");
   if (mark.systolic != null) parts.push("blood pressure");
   if (mark.feeling) parts.push(mark.feeling);
@@ -567,6 +598,7 @@ function renderCalendar() {
       <p class="cal-legend">
         <span><i class="dot meals"></i> Meals</span>
         <span><i class="dot move"></i> Movement</span>
+        <span><i class="dot water"></i> Water</span>
         <span><i class="dot weight"></i> Weight</span>
         <span><i class="dot pressure"></i> Pressure</span>
       </p>
@@ -592,6 +624,7 @@ function renderDayPanel() {
     const note = workout.notes ? ` · ${esc(workout.notes)}` : "";
     bits.push(`<p><span class="muted">${esc(kindLabel(workout.kind))}</span><br><strong>${workout.minutes} min</strong>${note}</p>`);
   });
+  if (day.water_glasses) bits.push(`<p><span class="muted">Water</span><br><strong>${esc(glassLabel(day.water_glasses))}</strong></p>`);
   if (day.weight_lb != null) bits.push(`<p><span class="muted">Weight</span><br><strong>${day.weight_lb} lb</strong></p>`);
   if (day.systolic != null) {
     const pulse = day.pulse ? ` · pulse ${day.pulse}` : "";
@@ -665,6 +698,7 @@ function renderProgress() {
       <article class="card stat"><b>${move}</b><span>move minutes</span></article>
       <article class="card stat"><b>${week.cardio_minutes}</b><span>cardio minutes</span></article>
       <article class="card stat"><b>${week.weights_minutes}</b><span>weights minutes</span></article>
+      <article class="card stat"><b>${week.water_glasses || 0}</b><span>glasses of water</span></article>
     </section>
     <section class="card stack">
       <h2>How the week felt</h2>
@@ -827,6 +861,45 @@ async function saveFeeling(feeling) {
   }
 }
 
+let waterGoal = null;
+let waterFlight = false;
+
+async function saveWater(delta) {
+  if (!state.day) return;
+  if (state.busy && !waterFlight) return;
+  const shown = Number(document.querySelector("[data-water-count]")?.textContent) || 0;
+  const next = Math.min(40, Math.max(0, shown + delta));
+  if (next === shown) return;
+  waterGoal = next;
+  paintWater(next);
+  if (waterFlight) return;
+  waterFlight = true;
+  setBusy(true);
+  clearBanners();
+  try {
+    while (waterGoal != null) {
+      const goal = waterGoal;
+      waterGoal = null;
+      const saved = await api(dayPath(), {
+        method: "PUT",
+        body: storedScalars({ water_glasses: goal || null, notes: notesValue() }),
+      });
+      state.day = saved;
+    }
+    remember(state.day, "water");
+    showNotice(state.day.water_glasses ? "Water saved." : "Water cleared.");
+  } catch (err) {
+    waterGoal = null;
+    paintWater(state.day.water_glasses || 0);
+    const status = document.getElementById("status");
+    if (status) status.textContent = statusText(state.day);
+    showError(err.message || "That didn't go through. Try again.");
+  } finally {
+    waterFlight = false;
+    setBusy(false);
+  }
+}
+
 async function saveSection(work, what) {
   if (state.busy) return;
   setBusy(true);
@@ -976,6 +1049,10 @@ document.addEventListener("click", (event) => {
   }
   if (act === "feeling") {
     saveFeeling(button.dataset.feeling || "");
+    return;
+  }
+  if (act === "water") {
+    saveWater(Number(button.dataset.delta));
     return;
   }
   if (act === "sheet") {
