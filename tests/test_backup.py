@@ -1,7 +1,7 @@
 def test_backup_round_trip(client):
     person = client.post("/api/people", json={"name": "Alex"}).json()
     day = f"/api/days/{person['id']}/2026-11-11"
-    client.put(day, json={"feeling": "good", "notes": "Steady", "weight_lb": 180.5, "systolic": 118, "diastolic": 74, "water_glasses": 8})
+    client.put(day, json={"feeling": "good", "notes": "Steady", "weight_lb": 180.5, "systolic": 118, "diastolic": 74, "water_glasses": 8, "sleep_hours": 7.5})
     client.put(day + "/meals", json={"meals": [
         {"slot": 1, "protein": "Eggs", "side": "Fruit"},
         {"slot": 2, "protein": "", "side": ""},
@@ -30,7 +30,9 @@ def test_backup_round_trip(client):
     assert loaded["notes"] == "Steady"
     assert loaded["weight_lb"] == 180.5
     assert loaded["water_glasses"] == 8
+    assert loaded["sleep_hours"] == 7.5
     assert exported.json()["days"][0]["water_glasses"] == 8
+    assert exported.json()["days"][0]["sleep_hours"] == 7.5
     assert loaded["meals"][0]["protein"] == "Eggs"
     assert loaded["meals"][5]["side"] == "Greens"
     assert loaded["workouts"][0]["notes"] == "Walk"
@@ -52,6 +54,7 @@ def test_backup_round_trip(client):
     loaded_old = client.get(f"/api/days/{person['id']}/2026-11-12").json()
     assert loaded_old["notes"] == "Before water"
     assert loaded_old["water_glasses"] is None
+    assert loaded_old["sleep_hours"] is None
 
 
 def test_bad_backup_is_refused(client):

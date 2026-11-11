@@ -42,7 +42,7 @@ def day_is_blank(day: DayLog) -> bool:
         return False
     if day.weight_lb is not None or day.systolic is not None or day.diastolic is not None or day.pulse is not None:
         return False
-    if day.water_glasses:
+    if day.water_glasses or day.sleep_hours:
         return False
     if any(meal.protein or meal.side for meal in day.meals):
         return False
@@ -93,6 +93,7 @@ def save_scalars(db: Session, person_id: int, logged_on: date, payload: DayWrite
         and payload.diastolic is None
         and payload.pulse is None
         and not payload.water_glasses
+        and not payload.sleep_hours
     )
     if day is None and blank:
         return empty_day(person.id, logged_on)
@@ -105,6 +106,7 @@ def save_scalars(db: Session, person_id: int, logged_on: date, payload: DayWrite
     day.diastolic = payload.diastolic
     day.pulse = payload.pulse
     day.water_glasses = payload.water_glasses
+    day.sleep_hours = payload.sleep_hours
     _touch(day)
     return _finish(db, person.id, logged_on, day)
 
@@ -187,6 +189,7 @@ def progress_for(db: Session, person_id: int, today: date) -> dict:
     weights_minutes = 0
     workouts = 0
     water_glasses = 0
+    sleep_hours = 0.0
     feelings = []
     for offset in range(7):
         logged_on = start + timedelta(days=offset)
@@ -199,6 +202,7 @@ def progress_for(db: Session, person_id: int, today: date) -> dict:
         cardio_minutes += sum(item.minutes for item in day.workouts if item.kind == "cardio")
         weights_minutes += sum(item.minutes for item in day.workouts if item.kind == "weights")
         water_glasses += day.water_glasses or 0
+        sleep_hours += day.sleep_hours or 0
     weights = [
         {"date": day.logged_on.isoformat(), "weight_lb": day.weight_lb}
         for day in db.scalars(
@@ -232,6 +236,7 @@ def progress_for(db: Session, person_id: int, today: date) -> dict:
             "cardio_minutes": cardio_minutes,
             "weights_minutes": weights_minutes,
             "water_glasses": water_glasses,
+            "sleep_hours": int(sleep_hours) if float(sleep_hours).is_integer() else round(sleep_hours, 1),
             "days_logged": len(week_rows),
             "feelings": feelings,
         },

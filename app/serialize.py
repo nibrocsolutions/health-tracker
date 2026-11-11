@@ -27,6 +27,7 @@ def empty_day(person_id: int, logged_on) -> dict:
         "diastolic": None,
         "pulse": None,
         "water_glasses": None,
+        "sleep_hours": None,
         "meals": [{"id": None, "slot": slot, "protein": "", "side": ""} for slot in range(1, 7)],
         "workouts": [],
     }
@@ -65,6 +66,7 @@ def day_out(day: DayLog) -> dict:
         "diastolic": day.diastolic,
         "pulse": day.pulse,
         "water_glasses": day.water_glasses,
+        "sleep_hours": day.sleep_hours,
         "meals": meals,
         "workouts": workouts,
     }
@@ -86,4 +88,5 @@ def mark_out(day: DayLog) -> dict:
         "feeling": day.feeling,
         "has_notes": bool(day.notes.strip()),
         "water_glasses": day.water_glasses,
+        "sleep_hours": day.sleep_hours,
     }

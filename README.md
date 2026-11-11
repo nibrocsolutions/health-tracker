@@ -1,6 +1,6 @@
 # Daily
 
-A phone-friendly health log for a Raspberry Pi. Each person keeps their own days: six small meals, glasses of water, movement, weight, blood pressure, and how the day felt. Open it in the phone's browser. There is no app store install.
+A phone-friendly health log for a Raspberry Pi. Each person keeps their own days: six small meals, glasses of water, hours of sleep, movement, weight, blood pressure, and how the day felt. Open it in the phone's browser. There is no app store install.
 
 Built the same way as Dolf: one Python container, SQLite on a Docker volume, and a page served by that same container.
 
@@ -37,8 +37,9 @@ docker compose down
 - Write down blood pressure, and pulse if you took it, on the days you want to
 - Leave a feeling and a note for the day overall
 - Count glasses of water for the day. Plus adds one, minus takes one away
+- Log hours of sleep for the day. Plus adds half an hour, minus takes half an hour away
 - Open on the calendar. Move between months and tap any day. The day opens under the month, and Log this day edits it
-- Look at this week on Progress: meals, minutes, glasses of water, a weight trend, and recent blood pressure
+- Look at this week on Progress: meals, minutes, glasses of water, hours of sleep, a weight trend, and recent blood pressure
 - Rename or remove a person. Removing someone removes their days
 
 The day is the date on the phone, not a clock on the Pi. Meals, workouts, and readings are stored in SQLite on the Pi, one database for everyone who uses that Pi. `docker compose down` keeps the data. `docker compose down -v` erases it.
@@ -69,11 +70,11 @@ pytest
 | GET, POST | `/api/people` | People on this Pi |
 | PATCH, DELETE | `/api/people/{id}` | Rename or remove a person and their days |
 | GET | `/api/days?person_id=&start=&end=` | Calendar marks for a date range |
-| GET, PUT | `/api/days/{person_id}/{date}` | One day: feeling, note, weight, blood pressure, glasses of water |
+| GET, PUT | `/api/days/{person_id}/{date}` | One day: feeling, note, weight, blood pressure, glasses of water, hours of sleep |
 | PUT | `/api/days/{person_id}/{date}/meals` | All six meals |
 | POST | `/api/days/{person_id}/{date}/workouts` | Add a cardio or weights session |
 | DELETE | `/api/workouts/{id}` | Remove a session |
-| GET | `/api/progress?person_id=&today=` | This week, including glasses of water, recent weight, recent blood pressure |
+| GET | `/api/progress?person_id=&today=` | This week, including glasses of water and hours of sleep, recent weight, recent blood pressure |
 | GET | `/api/admin/summary` | Counts for the admin page |
 | GET | `/api/admin/export` | Full backup as JSON |
 | POST | `/api/admin/import` | Replace the database from that backup |

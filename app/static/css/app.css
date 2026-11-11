@@ -342,13 +342,14 @@ button.cal-day.is-outside .cal-num { opacity: 0.45; }
 button.cal-day.is-today { box-shadow: inset 0 3px 0 var(--teal); }
 button.cal-day.is-selected { outline: 2px solid var(--ink); outline-offset: -2px; }
 .cal-num { font-weight: 750; font-variant-numeric: tabular-nums; }
-.cal-dots { display: flex; gap: 3px; min-height: 7px; }
-.dot { width: 7px; height: 7px; border-radius: 50%; display: block; }
+.cal-dots { display: flex; gap: 2px; min-height: 6px; justify-content: center; }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: block; }
 .dot.meals { background: var(--teal); }
 .dot.move { background: var(--orange); }
 .dot.weight { background: var(--navy); }
 .dot.pressure { background: var(--pressure); }
 .dot.water { background: #2aa7c9; }
+.dot.sleep { background: #7c5cbf; }
 
 .stepper {
   display: grid;

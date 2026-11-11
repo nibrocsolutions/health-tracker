@@ -24,6 +24,7 @@ class DayWrite(BaseModel):
     diastolic: int | None = None
     pulse: int | None = None
     water_glasses: int | None = None
+    sleep_hours: float | None = None
 
     @field_validator("feeling")
     @classmethod
@@ -61,6 +62,24 @@ class DayWrite(BaseModel):
         if not 0 <= value <= 40:
             raise ValueError("Glasses should be between 0 and 40.")
         return None if value == 0 else value
+
+    @field_validator("sleep_hours")
+    @classmethod
+    def check_sleep(cls, value: float | None) -> float | int | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise ValueError("Hours should be a number.")
+        hours = float(value)
+        if not 0 <= hours <= 24:
+            raise ValueError("Hours should be between 0 and 24.")
+        halves = round(hours * 2)
+        if abs(hours * 2 - halves) > 1e-6:
+            raise ValueError("Hours should be in half-hour steps.")
+        stepped = halves / 2
+        if stepped == 0:
+            return None
+        return int(stepped) if stepped.is_integer() else stepped
 
     @field_validator("systolic", "diastolic", "pulse")
     @classmethod

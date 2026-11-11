@@ -46,6 +46,8 @@ def ensure_columns() -> None:
         columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(days)")}
         if "water_glasses" not in columns:
             conn.exec_driver_sql("ALTER TABLE days ADD COLUMN water_glasses INTEGER")
+        if "sleep_hours" not in columns:
+            conn.exec_driver_sql("ALTER TABLE days ADD COLUMN sleep_hours REAL")
 
 
 def get_db() -> Generator[Session, None, None]:
