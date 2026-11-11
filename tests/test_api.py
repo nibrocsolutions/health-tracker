@@ -23,8 +23,12 @@ def test_health_and_home_page(client):
     assert "Daily" in page.text
     assert 'name="apple-mobile-web-app-capable"' in page.text
     assert 'data-tab="calendar"' in page.text
+    assert page.text.index('data-tab="calendar"') < page.text.index('data-tab="today"')
     assert 'data-tab="today"' in page.text
     assert 'data-tab="progress"' in page.text
+    script = client.get("/static/js/app.js")
+    assert script.status_code == 200
+    assert 'tab: "calendar"' in script.text
     admin = client.get("/admin")
     assert admin.status_code == 200
     assert "/static/js/app.js?v=" in admin.text
