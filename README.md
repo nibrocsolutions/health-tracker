@@ -37,7 +37,7 @@ docker compose down
 - Write down blood pressure, and pulse if you took it, on the days you want to
 - Leave a feeling and a note for the day overall
 - Count glasses of water for the day. Plus adds one, minus takes one away
-- Log hours of sleep for the day. Plus adds half an hour, minus takes half an hour away
+- Write down hours of sleep for the day. Half hours are fine, such as 7.5
 - Open on the calendar. Move between months and tap any day. The day opens under the month, and Log this day edits it
 - Look at this week on Progress: meals, minutes, glasses of water, hours of sleep, a weight trend, and recent blood pressure
 - Rename or remove a person. Removing someone removes their days

@@ -266,7 +266,8 @@ def test_sleep_hours_count_and_clear(client):
     assert uneven.status_code == 422
     assert "half-hour" in uneven.json()["detail"]
     script = client.get("/static/js/app.js")
-    assert 'data-act="sleep"' in script.text
+    assert 'name="sleep_hours"' in script.text
+    assert "Save sleep" in script.text
     assert "hours of sleep" in script.text
 
 

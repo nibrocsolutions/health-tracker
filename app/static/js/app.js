@@ -291,7 +291,10 @@ function remember(day, what) {
   if (intro) intro.hidden = Boolean(day.id);
   if (what === "feeling") paintFeelings(day.feeling || "");
   if (what === "water" || what === "counts") paintWater(day.water_glasses || 0);
-  if (what === "sleep" || what === "counts") paintSleep(day.sleep_hours || 0);
+  if (what === "sleep") {
+    const input = document.querySelector("#sleep [name=sleep_hours]");
+    if (input) input.value = day.sleep_hours ? formatHours(day.sleep_hours) : "";
+  }
   if (what === "notes" || what === "body") {
     const notes = document.querySelector("#app [name=notes]");
     if (notes && document.activeElement !== notes) notes.value = day.notes || "";
@@ -343,16 +346,6 @@ function paintWater(count) {
   const more = document.querySelector("[data-act=water][data-delta='1']");
   if (less) less.disabled = shown <= 0;
   if (more) more.disabled = shown >= 40;
-}
-
-function paintSleep(count) {
-  const shown = Math.round((Number(count) || 0) * 2) / 2;
-  const value = document.querySelector("[data-sleep-count]");
-  if (value) value.textContent = formatHours(shown);
-  const less = document.querySelector("[data-act=sleep][data-delta='-0.5']");
-  const more = document.querySelector("[data-act=sleep][data-delta='0.5']");
-  if (less) less.disabled = shown <= 0;
-  if (more) more.disabled = shown >= 24;
 }
 
 function readShown(selector, fallback) {
@@ -475,7 +468,6 @@ function renderToday() {
     </div>`;
   }).join("");
   const glasses = day.water_glasses || 0;
-  const hours = day.sleep_hours || 0;
   const onToday = state.date === todayISO();
   return `${header()}
     ${banners()}
@@ -506,12 +498,13 @@ function renderToday() {
     </section>
     <section class="card stack" id="sleep">
       <h2>Sleep</h2>
-      <p class="muted">Hours slept. Plus adds half an hour.</p>
-      <div class="stepper" role="group" aria-label="Hours of sleep">
-        <button type="button" data-act="sleep" data-delta="-0.5" aria-label="Half an hour less" ${hours <= 0 ? "disabled" : ""}>−</button>
-        <span class="stepper-value" data-sleep-count>${formatHours(hours)}</span>
-        <button type="button" data-act="sleep" data-delta="0.5" aria-label="Half an hour more" ${hours >= 24 ? "disabled" : ""}>+</button>
-      </div>
+      <p class="muted">Hours slept. Half hours are fine, such as 7.5.</p>
+      <form class="stack" data-act="save-sleep">
+        <label class="field">Hours
+          <input name="sleep_hours" inputmode="decimal" value="${day.sleep_hours ? formatHours(day.sleep_hours) : ""}" placeholder="hours" autocomplete="off">
+        </label>
+        <button class="primary" type="submit">Save sleep</button>
+      </form>
     </section>
     <section class="card stack" id="feeling">
       <h2>How the day feels</h2>
@@ -909,11 +902,9 @@ async function saveFeeling(feeling) {
 let countGoal = null;
 let countFlight = false;
 
-function queueCounts(kind) {
+function queueCounts() {
   countGoal = {
-    kind,
     water: readShown("[data-water-count]", state.day && state.day.water_glasses),
-    sleep: readShown("[data-sleep-count]", state.day && state.day.sleep_hours),
   };
   if (countFlight) return;
   flushCounts();
@@ -925,29 +916,23 @@ async function flushCounts() {
   clearBanners();
   try {
     let saved = state.day;
-    let lastKind = "water";
     while (countGoal) {
       const goal = countGoal;
       countGoal = null;
-      lastKind = goal.kind;
       saved = await api(dayPath(), {
         method: "PUT",
         body: storedScalars({
           water_glasses: goal.water || null,
-          sleep_hours: goal.sleep || null,
           notes: notesValue(),
         }),
       });
       state.day = saved;
     }
     remember(saved, "counts");
-    const kept = lastKind === "sleep" ? saved.sleep_hours : saved.water_glasses;
-    const name = lastKind === "sleep" ? "Sleep" : "Water";
-    showNotice(kept ? `${name} saved.` : `${name} cleared.`);
+    showNotice(saved.water_glasses ? "Water saved." : "Water cleared.");
   } catch (err) {
     countGoal = null;
     paintWater(state.day.water_glasses || 0);
-    paintSleep(state.day.sleep_hours || 0);
     const status = document.getElementById("status");
     if (status) status.textContent = statusText(state.day);
     showError(err.message || "That didn't go through. Try again.");
@@ -964,17 +949,15 @@ function saveWater(delta) {
   const next = Math.min(40, Math.max(0, shown + delta));
   if (next === shown) return;
   paintWater(next);
-  queueCounts("water");
+  queueCounts();
 }
 
-function saveSleep(delta) {
-  if (!state.day) return;
-  if (state.busy && !countFlight) return;
-  const shown = readShown("[data-sleep-count]", state.day.sleep_hours);
-  const next = Math.min(24, Math.max(0, Math.round((shown + delta) * 2) / 2));
-  if (next === shown) return;
-  paintSleep(next);
-  queueCounts("sleep");
+function readSleep(data) {
+  const raw = String(data.get("sleep_hours") ?? "").trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) throw new Error("Hours should be a number.");
+  return value;
 }
 
 async function saveSection(work, what) {
@@ -989,6 +972,7 @@ async function saveSection(work, what) {
       meals: "Meals saved.",
       body: "Readings saved.",
       workouts: "Session saved.",
+      sleep: saved.sleep_hours ? "Sleep saved." : "Sleep cleared.",
     }[what];
     if (savedLabel) showNotice(savedLabel);
   } catch (err) {
@@ -1039,6 +1023,13 @@ async function onSubmit(act, data) {
   }
   if (act === "save-meals") {
     await saveSection(async () => api(`${dayPath()}/meals`, { method: "PUT", body: readMeals(data) }), "meals");
+    return;
+  }
+  if (act === "save-sleep") {
+    await saveSection(async () => api(dayPath(), {
+      method: "PUT",
+      body: storedScalars({ sleep_hours: readSleep(data), notes: notesValue() }),
+    }), "sleep");
     return;
   }
   if (act === "save-body") {
@@ -1130,10 +1121,6 @@ document.addEventListener("click", (event) => {
   }
   if (act === "water") {
     saveWater(Number(button.dataset.delta));
-    return;
-  }
-  if (act === "sleep") {
-    saveSleep(Number(button.dataset.delta));
     return;
   }
   if (act === "sheet") {
@@ -1244,7 +1231,7 @@ document.addEventListener("submit", (event) => {
   const act = form.dataset.act;
   const data = new FormData(form);
   const pending = onSubmit(act, data);
-  if (act === "save-notes" || act === "save-meals" || act === "save-body" || act === "add-workout") {
+  if (act === "save-notes" || act === "save-meals" || act === "save-body" || act === "save-sleep" || act === "add-workout") {
     pending.catch((err) => showError(err.message || "Something went wrong."));
     return;
   }
