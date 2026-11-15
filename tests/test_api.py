@@ -29,6 +29,8 @@ def test_health_and_home_page(client):
     script = client.get("/static/js/app.js")
     assert script.status_code == 200
     assert 'tab: "calendar"' in script.text
+    assert '<i class="dot tone-great"></i> Great' in script.text
+    assert '<i class="dot tone-rough"></i> Rough' in script.text
     admin = client.get("/admin")
     assert admin.status_code == 200
     assert "/static/js/app.js?v=" in admin.text
