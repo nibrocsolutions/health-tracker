@@ -583,14 +583,10 @@ function workoutItems(day) {
 
 function dayDots(mark) {
   if (!mark) return `<span class="cal-dots"></span>`;
-  const dots = [];
-  if (mark.meals) dots.push(`<i class="dot meals"></i>`);
-  if (mark.workouts) dots.push(`<i class="dot move"></i>`);
-  if (mark.water_glasses) dots.push(`<i class="dot water"></i>`);
-  if (mark.sleep_hours) dots.push(`<i class="dot sleep"></i>`);
-  if (mark.weight_lb != null) dots.push(`<i class="dot weight"></i>`);
-  if (mark.systolic != null) dots.push(`<i class="dot pressure"></i>`);
-  return `<span class="cal-dots">${dots.join("")}</span>`;
+  const logged = mark.meals || mark.workouts || mark.water_glasses || mark.sleep_hours || mark.weight_lb != null || mark.systolic != null || mark.feeling || mark.has_notes;
+  if (!logged) return `<span class="cal-dots"></span>`;
+  const tone = mark.feeling ? ` tone-${mark.feeling}` : " tone-none";
+  return `<span class="cal-dots"><i class="dot${tone}"></i></span>`;
 }
 
 function dayAria(date, mark) {
@@ -616,8 +612,7 @@ function renderCalendar() {
     const outside = day.getMonth() === selected.getMonth() ? "" : " is-outside";
     const today = key === todayISO() ? " is-today" : "";
     const current = key === state.date ? " is-selected" : "";
-    const feel = mark && mark.feeling ? ` feel-${mark.feeling}` : "";
-    return `<button type="button" class="cal-day${outside}${today}${current}" data-act="pick-day" data-date="${key}" aria-pressed="${current ? "true" : "false"}" aria-label="${esc(dayAria(day, mark))}"><span class="cal-num${feel}">${day.getDate()}</span>${dayDots(mark)}</button>`;
+    return `<button type="button" class="cal-day${outside}${today}${current}" data-act="pick-day" data-date="${key}" aria-pressed="${current ? "true" : "false"}" aria-label="${esc(dayAria(day, mark))}"><span class="cal-num">${day.getDate()}</span>${dayDots(mark)}</button>`;
   }).join("");
   return `${header()}
     ${banners()}
@@ -631,14 +626,13 @@ function renderCalendar() {
         </div>
       </div>
       <p class="cal-legend">
-        <span><i class="dot meals"></i> Meals</span>
-        <span><i class="dot move"></i> Movement</span>
-        <span><i class="dot water"></i> Water</span>
-        <span><i class="dot sleep"></i> Sleep</span>
-        <span><i class="dot weight"></i> Weight</span>
-        <span><i class="dot pressure"></i> Pressure</span>
+        <span><i class="dot tone-great"></i> Great</span>
+        <span><i class="dot tone-good"></i> Good</span>
+        <span><i class="dot tone-okay"></i> Okay</span>
+        <span><i class="dot tone-low"></i> Low</span>
+        <span><i class="dot tone-rough"></i> Rough</span>
       </p>
-      <p class="muted cal-note">A date takes on a color when a feeling is saved.</p>
+      <p class="muted cal-note">A dot takes the color of that day's feeling.</p>
       <div class="cal-grid">${dow}${grid}</div>
       ${renderDayPanel()}
     </section>`;
